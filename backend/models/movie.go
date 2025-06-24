@@ -28,6 +28,7 @@ type Movie struct {
 	MediaType           string              `json:"media_type"`
 	CreatedAt           time.Time           `json:"created_at"`
 	UpdatedAt           time.Time           `json:"updated_at"`
+	TrailerKey          string              `json:"trailerKey,omitempty"`
 }
 
 // Genre represents a movie genre
