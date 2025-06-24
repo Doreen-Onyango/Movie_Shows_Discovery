@@ -241,3 +241,93 @@ func FormatDuration(minutes int) string {
 	}
 	return fmt.Sprintf("%dm", mins)
 }
+
+// CalculateSimilarity calculates similarity between two movies based on genres
+func CalculateSimilarity(movie1, movie2 models.Movie) float64 {
+	if len(movie1.GenreIDs) == 0 || len(movie2.GenreIDs) == 0 {
+		return 0
+	}
+
+	// Create sets of genre IDs
+	genres1 := make(map[int]bool)
+	for _, id := range movie1.GenreIDs {
+		genres1[id] = true
+	}
+
+	genres2 := make(map[int]bool)
+	for _, id := range movie2.GenreIDs {
+		genres2[id] = true
+	}
+
+	// Calculate intersection and union
+	intersection := 0
+	for id := range genres1 {
+		if genres2[id] {
+			intersection++
+		}
+	}
+
+	union := len(genres1) + len(genres2) - intersection
+
+	if union == 0 {
+		return 0
+	}
+
+	return float64(intersection) / float64(union)
+}
+
+// PaginateResults handles pagination for search results
+func PaginateResults(results []models.Movie, page, perPage int) ([]models.Movie, models.Meta) {
+	totalResults := len(results)
+	totalPages := int(math.Ceil(float64(totalResults) / float64(perPage)))
+
+	// Validate page number
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages && totalPages > 0 {
+		page = totalPages
+	}
+
+	// Calculate start and end indices
+	start := (page - 1) * perPage
+	end := start + perPage
+
+	if start >= totalResults {
+		return []models.Movie{}, models.Meta{
+			Page:         page,
+			PerPage:      perPage,
+			TotalPages:   totalPages,
+			TotalResults: totalResults,
+			HasNext:      false,
+			HasPrev:      page > 1,
+		}
+	}
+
+	if end > totalResults {
+		end = totalResults
+	}
+
+	paginatedResults := results[start:end]
+
+	meta := models.Meta{
+		Page:         page,
+		PerPage:      perPage,
+		TotalPages:   totalPages,
+		TotalResults: totalResults,
+		HasNext:      page < totalPages,
+		HasPrev:      page > 1,
+	}
+
+	return paginatedResults, meta
+}
+
+// MarshalJSON safely marshals data to JSON
+func MarshalJSON(data interface{}) ([]byte, error) {
+	return json.Marshal(data)
+}
+
+// UnmarshalJSON safely unmarshals JSON data
+func UnmarshalJSON(data []byte, v interface{}) error {
+	return json.Unmarshal(data, v)
+}
