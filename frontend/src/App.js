@@ -8,6 +8,7 @@ import SearchResults from './components/SearchResults';
 import Watchlist from './components/Watchlist';
 import GenreMovies from './components/GenreMovies';
 import LoadingSpinner from './components/LoadingSpinner';
+import Footer from './components/Footer';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -28,15 +29,17 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
         <Header />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-8 pb-24">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/movie/:id" element={<MovieDetail />} />
+            <Route path="/media/:type/:id" element={<MovieDetail />} />
             <Route path="/search" element={<SearchResults />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/genre/:id" element={<GenreMovies />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );
