@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/config"
 )
 
 // HTTPClient represents a custom HTTP client with retry and rate limiting
@@ -136,4 +138,28 @@ func (h *HTTPClient) RequestWithRetry(ctx context.Context, method, url string, b
 	}
 
 	return nil, fmt.Errorf("request failed after %d attempts", maxRetries+1)
+}
+
+// Close closes the HTTP client and cleans up resources
+func (h *HTTPClient) Close() {
+	if h.rateLimit.ticker != nil {
+		h.rateLimit.ticker.Stop()
+	}
+}
+
+// CreateTMDBClient creates an HTTP client configured for TMDB API
+func CreateTMDBClient() *HTTPClient {
+	cfg := config.AppConfig
+	return NewHTTPClient(30*time.Second, cfg.TMDB.RateLimit)
+}
+
+// CreateOMDBClient creates an HTTP client configured for OMDB API
+func CreateOMDBClient() *HTTPClient {
+	cfg := config.AppConfig
+	return NewHTTPClient(30*time.Second, cfg.OMDB.RateLimit)
+}
+
+// CreateDefaultClient creates a default HTTP client
+func CreateDefaultClient() *HTTPClient {
+	return NewHTTPClient(30*time.Second, 100)
 }
