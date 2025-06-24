@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/config"
 	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/models"
@@ -182,4 +183,118 @@ func (s *TMDBService) SearchMovies(ctx context.Context, query string, page int, 
 	s.cache.Set(cacheKey, result, config.AppConfig.Cache.SearchTTL)
 
 	return result, nil
+}
+
+// GetMovieDetails retrieves detailed movie information
+func (s *TMDBService) GetMovieDetails(ctx context.Context, movieID int) (*models.Movie, error) {
+	// Generate cache key
+	cacheKey := utils.GenerateCacheKey("tmdb_movie", movieID)
+
+	// Check cache first
+	if cached, exists := s.cache.Get(cacheKey); exists {
+		if movie, ok := cached.(*models.Movie); ok {
+			return movie, nil
+		}
+	}
+
+	// Build URL
+	baseURL := fmt.Sprintf("%s/movie/%d", s.config.BaseURL, movieID)
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("append_to_response", "credits")
+	params.Set("language", "en-US")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get movie details: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbMovie TMDBMovieResponse
+	if err := json.Unmarshal(body, &tmdbMovie); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	movie := s.convertTMDBMovie(tmdbMovie)
+
+	// Get credits separately if not included
+	if len(movie.Credits.Cast) == 0 {
+		credits, err := s.GetMovieCredits(ctx, movieID)
+		if err == nil {
+			movie.Credits = *credits
+		}
+	}
+
+	// Validate and set ratings
+	movie.Ratings.TMDB = movie.VoteAverage
+
+	// Cache the result
+	s.cache.Set(cacheKey, movie, config.AppConfig.Cache.TTL)
+
+	return movie, nil
+}
+
+// GetMovieCredits retrieves cast and crew information
+func (s *TMDBService) GetMovieCredits(ctx context.Context, movieID int) (*models.Credits, error) {
+	// Build URL
+	baseURL := fmt.Sprintf("%s/movie/%d/credits", s.config.BaseURL, movieID)
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("language", "en-US")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get movie credits: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbCredits TMDBCreditsResponse
+	if err := json.Unmarshal(body, &tmdbCredits); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	credits := &models.Credits{
+		Cast: make([]models.CastMember, len(tmdbCredits.Cast)),
+		Crew: make([]models.CrewMember, len(tmdbCredits.Crew)),
+	}
+
+	for i, cast := range tmdbCredits.Cast {
+		credits.Cast[i] = models.CastMember{
+			ID:          cast.ID,
+			Name:        cast.Name,
+			Character:   cast.Character,
+			ProfilePath: cast.ProfilePath,
+			Order:       cast.Order,
+		}
+	}
+
+	for i, crew := range tmdbCredits.Crew {
+		credits.Crew[i] = models.CrewMember{
+			ID:          crew.ID,
+			Name:        crew.Name,
+			Job:         crew.Job,
+			Department:  crew.Department,
+			ProfilePath: crew.ProfilePath,
+		}
+	}
+
+	return credits, nil
 }
