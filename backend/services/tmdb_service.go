@@ -472,3 +472,80 @@ func (s *TMDBService) GetGenres(ctx context.Context) ([]models.Genre, error) {
 
 	return genres, nil
 }
+
+// convertTMDBMovie converts TMDB movie response to our model
+func (s *TMDBService) convertTMDBMovie(tmdbMovie TMDBMovieResponse) *models.Movie {
+	movie := &models.Movie{
+		ID:            tmdbMovie.ID,
+		Title:         tmdbMovie.Title,
+		OriginalTitle: tmdbMovie.OriginalTitle,
+		Overview:      tmdbMovie.Overview,
+		PosterPath:    tmdbMovie.PosterPath,
+		BackdropPath:  tmdbMovie.BackdropPath,
+		ReleaseDate:   tmdbMovie.ReleaseDate,
+		Runtime:       tmdbMovie.Runtime,
+		Status:        tmdbMovie.Status,
+		Tagline:       tmdbMovie.Tagline,
+		VoteAverage:   tmdbMovie.VoteAverage,
+		VoteCount:     tmdbMovie.VoteCount,
+		Popularity:    tmdbMovie.Popularity,
+		Adult:         tmdbMovie.Adult,
+		Video:         tmdbMovie.Video,
+		GenreIDs:      tmdbMovie.GenreIDs,
+		MediaType:     "movie",
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	// Convert genres
+	if len(tmdbMovie.Genres) > 0 {
+		movie.Genres = make([]models.Genre, len(tmdbMovie.Genres))
+		for i, genre := range tmdbMovie.Genres {
+			movie.Genres[i] = models.Genre{
+				ID:   genre.ID,
+				Name: genre.Name,
+			}
+		}
+	}
+
+	// Convert production companies
+	if len(tmdbMovie.ProductionCompanies) > 0 {
+		movie.ProductionCompanies = make([]models.ProductionCompany, len(tmdbMovie.ProductionCompanies))
+		for i, company := range tmdbMovie.ProductionCompanies {
+			movie.ProductionCompanies[i] = models.ProductionCompany{
+				ID:            company.ID,
+				Name:          company.Name,
+				LogoPath:      company.LogoPath,
+				OriginCountry: company.OriginCountry,
+			}
+		}
+	}
+
+	// Convert spoken languages
+	if len(tmdbMovie.SpokenLanguages) > 0 {
+		movie.SpokenLanguages = make([]models.SpokenLanguage, len(tmdbMovie.SpokenLanguages))
+		for i, lang := range tmdbMovie.SpokenLanguages {
+			movie.SpokenLanguages[i] = models.SpokenLanguage{
+				ISO6391: lang.ISO6391,
+				Name:    lang.Name,
+			}
+		}
+	}
+
+	// Initialize ratings
+	movie.Ratings = models.Ratings{
+		TMDB: tmdbMovie.VoteAverage,
+	}
+
+	// Validate movie data
+	utils.ValidateMovieData(movie)
+
+	return movie
+}
+
+// Close closes the service and cleans up resources
+func (s *TMDBService) Close() {
+	if s.client != nil {
+		s.client.Close()
+	}
+}
