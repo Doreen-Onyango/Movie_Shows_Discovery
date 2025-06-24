@@ -41,7 +41,17 @@ const MovieDetail = () => {
         apiService.getSimilarMovies(id, 1)
       ]);
 
-      setMovie(movieResponse.data);
+      let movieData = movieResponse.data.data;
+      if (!movieData && movieResponse.data && movieResponse.data.success !== false) {
+        // Fallback for old response shape
+        movieData = movieResponse.data;
+      }
+      if (!movieData || movieResponse.data.success === false) {
+        setError('Movie not found.');
+        setMovie(null);
+        return;
+      }
+      setMovie(movieData);
       setSimilarMovies(similarResponse.data.movies || []);
     } catch (err) {
       console.error('Error loading movie details:', err);
@@ -110,6 +120,23 @@ const MovieDetail = () => {
 
   return (
     <div className="space-y-8">
+      {/* Trailer */}
+      {movie.trailerKey && (
+        <div className="my-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Trailer</h2>
+          <div className="w-full flex flex-col md:flex-row md:items-start gap-6">
+            <iframe
+              src={`https://www.youtube.com/embed/${movie.trailerKey}`}
+              title="Movie Trailer"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-48 md:h-64 rounded-lg border border-gray-300 dark:border-gray-700"
+              style={{ minWidth: 0 }}
+            ></iframe>
+          </div>
+        </div>
+      )}
+
       {/* Movie Header */}
       <div className="relative">
         {/* Backdrop Image */}
