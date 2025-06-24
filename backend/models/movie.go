@@ -120,3 +120,44 @@ type MovieList struct {
 	HasNext      bool    `json:"has_next"`
 	HasPrev      bool    `json:"has_prev"`
 }
+
+// TV represents a TV show with comprehensive information
+// Fields are similar to Movie, but adapted for TV data from TMDB
+// Only fields relevant for search/trending/details are included
+// You can expand as needed for more detail
+
+type TV struct {
+	ID                  int                 `json:"id"`
+	Name                string              `json:"name"`
+	OriginalName        string              `json:"original_name"`
+	Overview            string              `json:"overview"`
+	PosterPath          string              `json:"poster_path"`
+	BackdropPath        string              `json:"backdrop_path"`
+	FirstAirDate        string              `json:"first_air_date"`
+	LastAirDate         string              `json:"last_air_date"`
+	NumberOfSeasons     int                 `json:"number_of_seasons"`
+	NumberOfEpisodes    int                 `json:"number_of_episodes"`
+	Status              string              `json:"status"`
+	Tagline             string              `json:"tagline"`
+	VoteAverage         float64             `json:"vote_average"`
+	VoteCount           int                 `json:"vote_count"`
+	Popularity          float64             `json:"popularity"`
+	GenreIDs            []int               `json:"genre_ids"`
+	Genres              []Genre             `json:"genres"`
+	ProductionCompanies []ProductionCompany `json:"production_companies"`
+	SpokenLanguages     []SpokenLanguage    `json:"spoken_languages"`
+	Credits             Credits             `json:"credits"`
+	Ratings             Ratings             `json:"ratings"`
+	MediaType           string              `json:"media_type"`
+	CreatedAt           time.Time           `json:"created_at"`
+	UpdatedAt           time.Time           `json:"updated_at"`
+	TrailerKey          string              `json:"trailerKey,omitempty"`
+}
+
+// TVSearchResult represents a TV show search result
+type TVSearchResult struct {
+	Page         int  `json:"page"`
+	Results      []TV `json:"results"`
+	TotalPages   int  `json:"total_pages"`
+	TotalResults int  `json:"total_results"`
+}
