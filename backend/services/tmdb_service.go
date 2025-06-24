@@ -234,6 +234,12 @@ func (s *TMDBService) GetMovieDetails(ctx context.Context, movieID int) (*models
 		}
 	}
 
+	// Fetch trailer video from TMDB
+	trailerKey, err := s.getTrailerKey(ctx, movieID)
+	if err == nil && trailerKey != "" {
+		movie.TrailerKey = trailerKey
+	}
+
 	// Validate and set ratings
 	movie.Ratings.TMDB = movie.VoteAverage
 
@@ -241,6 +247,45 @@ func (s *TMDBService) GetMovieDetails(ctx context.Context, movieID int) (*models
 	s.cache.Set(cacheKey, movie, config.AppConfig.Cache.TTL)
 
 	return movie, nil
+}
+
+// getTrailerKey fetches the first YouTube trailer key for a movie
+func (s *TMDBService) getTrailerKey(ctx context.Context, movieID int) (string, error) {
+	baseURL := fmt.Sprintf("%s/movie/%d/videos", s.config.BaseURL, movieID)
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("language", "en-US")
+
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var videoResp struct {
+		Results []struct {
+			Key      string `json:"key"`
+			Site     string `json:"site"`
+			Type     string `json:"type"`
+			Official bool   `json:"official"`
+			Name     string `json:"name"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(body, &videoResp); err != nil {
+		return "", err
+	}
+
+	for _, v := range videoResp.Results {
+		if v.Site == "YouTube" && v.Type == "Trailer" {
+			return v.Key, nil
+		}
+	}
+	return "", nil
 }
 
 // GetMovieCredits retrieves cast and crew information
