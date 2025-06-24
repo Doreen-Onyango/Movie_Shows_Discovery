@@ -58,9 +58,21 @@ export const truncateText = (text, maxLength = 150) => {
 
 // Calculate average rating
 export const calculateAverageRating = (ratings) => {
-  if (!ratings || ratings.length === 0) return 0;
-  const sum = ratings.reduce((acc, rating) => acc + (rating.value || 0), 0);
-  return Math.round((sum / ratings.length) * 10) / 10;
+  if (!ratings) return 0;
+  // If ratings is an array of objects with .value
+  if (Array.isArray(ratings)) {
+    if (ratings.length === 0) return 0;
+    const sum = ratings.reduce((acc, rating) => acc + (rating.value || 0), 0);
+    return Math.round((sum / ratings.length) * 10) / 10;
+  }
+  // If ratings is an object with numeric values (from backend)
+  if (typeof ratings === 'object') {
+    const values = Object.values(ratings).filter(v => typeof v === 'number' && !isNaN(v));
+    if (values.length === 0) return 0;
+    const sum = values.reduce((acc, v) => acc + v, 0);
+    return Math.round((sum / values.length) * 10) / 10;
+  }
+  return 0;
 };
 
 // Validate movie data
