@@ -18,7 +18,7 @@ import LoadingSpinner from './LoadingSpinner';
 import MovieCard from './MovieCard';
 
 const MovieDetail = () => {
-  const { id } = useParams();
+  const { type, id } = useParams();
   const [movie, setMovie] = useState(null);
   const [similarMovies, setSimilarMovies] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
@@ -29,33 +29,28 @@ const MovieDetail = () => {
   useEffect(() => {
     loadMovieData();
     loadWatchlist();
-  }, [id]);
+  }, [type, id]);
 
   const loadMovieData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [movieResponse, similarResponse] = await Promise.all([
-        apiService.getMovieDetails(id),
-        apiService.getSimilarMovies(id, 1)
-      ]);
-
-      let movieData = movieResponse.data.data;
-      if (!movieData && movieResponse.data && movieResponse.data.success !== false) {
-        // Fallback for old response shape
-        movieData = movieResponse.data;
+      const response = await apiService.getMediaDetails(type, id);
+      let mediaData = response.data.data;
+      if (!mediaData && response.data && response.data.success !== false) {
+        mediaData = response.data;
       }
-      if (!movieData || movieResponse.data.success === false) {
-        setError('Movie not found.');
+      if (!mediaData || response.data.success === false) {
+        setError(type === 'tv' ? 'TV show not found.' : 'Movie not found.');
         setMovie(null);
         return;
       }
-      setMovie(movieData);
-      setSimilarMovies(similarResponse.data.movies || []);
+      setMovie(mediaData);
+      setSimilarMovies(response.data.movies || []);
     } catch (err) {
-      console.error('Error loading movie details:', err);
-      setError('Failed to load movie details. Please try again.');
+      console.error('Error loading details:', err);
+      setError('Failed to load details. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -143,7 +138,7 @@ const MovieDetail = () => {
         <div className="relative h-96 bg-gray-900 rounded-lg overflow-hidden">
           <img
             src={getBackdropUrl(movie.backdrop_path)}
-            alt={movie.title}
+            alt={movie.title || movie.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
@@ -155,14 +150,14 @@ const MovieDetail = () => {
               <div className="flex-shrink-0">
                 <img
                   src={getPosterUrl(movie.poster_path, 'w500')}
-                  alt={movie.title}
+                  alt={movie.title || movie.name}
                   className="w-32 h-48 object-cover rounded-lg shadow-lg"
                 />
               </div>
               
               {/* Movie Info */}
               <div className="flex-1 text-white">
-                <h1 className="text-4xl font-bold mb-2">{movie.title}</h1>
+                <h1 className="text-4xl font-bold mb-2">{movie.title || movie.name}</h1>
                 
                 <div className="flex items-center space-x-4 text-sm mb-3">
                   {movie.release_date && (
