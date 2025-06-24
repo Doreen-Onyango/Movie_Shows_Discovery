@@ -33,8 +33,8 @@ A comprehensive backend API for movie discovery, built with Go. This application
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd Movie_Shows_Discovery/backend
+   git clone https://github.com/Doreen-Onyango/Movie_Shows_Discovery
+   cd Movie_Shows_Discovery
    ```
 
 2. **Install dependencies**
@@ -143,13 +143,6 @@ curl -X POST "http://localhost:8080/api/v1/watchlist/items" \
 |----------|-------------|---------|
 | `TMDB_API_KEY` | TMDB API key | Required |
 | `OMDB_API_KEY` | OMDB API key | Required |
-| `PORT` | Server port | 8080 |
-| `HOST` | Server host | localhost |
-| `CACHE_TTL` | Cache TTL in seconds | 3600 |
-| `SEARCH_CACHE_TTL` | Search cache TTL | 1800 |
-| `TRENDING_CACHE_TTL` | Trending cache TTL | 3600 |
-| `TMDB_RATE_LIMIT` | TMDB requests per second | 40 |
-| `OMDB_RATE_LIMIT` | OMDB requests per second | 1000 |
 
 ## 🚀 Performance Features
 
@@ -180,14 +173,6 @@ go test ./...
 ```bash
 go test -cover ./...
 ```
-
-## 📊 Monitoring
-
-### Health Check
-```bash
-curl http://localhost:8080/health
-```
-
 ### Logging
 The application provides comprehensive logging:
 - Request/response logging
