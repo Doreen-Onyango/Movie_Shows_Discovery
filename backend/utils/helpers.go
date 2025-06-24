@@ -3,7 +3,12 @@ package utils
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/models"
@@ -120,4 +125,119 @@ func ValidateMovieData(movie *models.Movie) {
 	if movie.Runtime < 0 {
 		movie.Runtime = 0
 	}
+}
+
+// ValidateRatings validates and normalizes ratings
+func ValidateRatings(ratings *models.Ratings) {
+	// Ensure ratings are within valid ranges
+	if ratings.TMDB < 0 || ratings.TMDB > 10 {
+		ratings.TMDB = 0
+	}
+	if ratings.OMDB < 0 || ratings.OMDB > 10 {
+		ratings.OMDB = 0
+	}
+	if ratings.RottenTomatoes < 0 || ratings.RottenTomatoes > 100 {
+		ratings.RottenTomatoes = 0
+	}
+	if ratings.IMDB < 0 || ratings.IMDB > 10 {
+		ratings.IMDB = 0
+	}
+	if ratings.Metacritic < 0 || ratings.Metacritic > 100 {
+		ratings.Metacritic = 0
+	}
+}
+
+// CalculateAverageRating calculates the average rating from multiple sources
+func CalculateAverageRating(ratings models.Ratings) float64 {
+	var sum float64
+	var count int
+
+	if ratings.TMDB > 0 {
+		sum += ratings.TMDB
+		count++
+	}
+	if ratings.OMDB > 0 {
+		sum += ratings.OMDB
+		count++
+	}
+	if ratings.IMDB > 0 {
+		sum += ratings.IMDB
+		count++
+	}
+	if ratings.RottenTomatoes > 0 {
+		// Convert Rotten Tomatoes to 10-point scale
+		sum += (ratings.RottenTomatoes / 10.0)
+		count++
+	}
+	if ratings.Metacritic > 0 {
+		// Convert Metacritic to 10-point scale
+		sum += (ratings.Metacritic / 10.0)
+		count++
+	}
+
+	if count == 0 {
+		return 0
+	}
+
+	return math.Round((sum/float64(count))*10) / 10
+}
+
+// ParseYear extracts year from date string
+func ParseYear(dateStr string) int {
+	if dateStr == "" {
+		return 0
+	}
+
+	// Try to parse as YYYY-MM-DD
+	parts := strings.Split(dateStr, "-")
+	if len(parts) > 0 {
+		if year, err := strconv.Atoi(parts[0]); err == nil {
+			return year
+		}
+	}
+
+	// Try to parse as YYYY
+	if year, err := strconv.Atoi(dateStr); err == nil && year > 1900 && year <= time.Now().Year()+10 {
+		return year
+	}
+
+	return 0
+}
+
+// SanitizeString removes special characters and normalizes string
+func SanitizeString(s string) string {
+	// Remove special characters but keep spaces and basic punctuation
+	reg := regexp.MustCompile(`[^\w\s\-.,!?()]`)
+	sanitized := reg.ReplaceAllString(s, "")
+
+	// Normalize whitespace
+	sanitized = regexp.MustCompile(`\s+`).ReplaceAllString(sanitized, " ")
+
+	return strings.TrimSpace(sanitized)
+}
+
+// TruncateString truncates a string to specified length
+func TruncateString(s string, maxLength int) string {
+	if len(s) <= maxLength {
+		return s
+	}
+	return s[:maxLength-3] + "..."
+}
+
+// FormatDuration formats duration in minutes to human readable format
+func FormatDuration(minutes int) string {
+	if minutes <= 0 {
+		return "Unknown"
+	}
+
+	hours := minutes / 60
+	mins := minutes % 60
+
+	if hours > 0 {
+		if mins > 0 {
+			return fmt.Sprintf("%dh %dm", hours, mins)
+		}
+		return fmt.Sprintf("%dh", hours)
+	}
+	return fmt.Sprintf("%dm", mins)
 }
