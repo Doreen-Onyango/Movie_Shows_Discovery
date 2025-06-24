@@ -36,7 +36,7 @@ func SetupRoutes(
 
 	// Movie routes
 	movieRoutes := api.PathPrefix("/movies").Subrouter()
-	movieRoutes.HandleFunc("/search", movieController.SearchMovies).Methods("GET")
+	movieRoutes.HandleFunc("/api/search", movieController.SearchMovies).Methods("GET")
 	movieRoutes.HandleFunc("/{id:[0-9]+}", movieController.GetMovieDetails).Methods("GET")
 	movieRoutes.HandleFunc("/{id:[0-9]+}/similar", movieController.GetSimilarMovies).Methods("GET")
 	movieRoutes.HandleFunc("/genres", movieController.GetGenres).Methods("GET")
@@ -48,6 +48,9 @@ func SetupRoutes(
 	trendingRoutes.HandleFunc("/by-genre", trendingController.GetTrendingByGenre).Methods("GET")
 	trendingRoutes.HandleFunc("/stats", trendingController.GetTrendingStats).Methods("GET")
 	trendingRoutes.HandleFunc("/genres", trendingController.GetTrendingGenres).Methods("GET")
+
+	// Media details route (unified for movie and tv)
+	api.HandleFunc("/media/{type}/{id:[0-9]+}", movieController.GetMediaDetails).Methods("GET")
 
 	// Watchlist routes
 	watchlistRoutes := api.PathPrefix("/watchlist").Subrouter()
