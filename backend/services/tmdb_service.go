@@ -298,3 +298,177 @@ func (s *TMDBService) GetMovieCredits(ctx context.Context, movieID int) (*models
 
 	return credits, nil
 }
+
+// GetTrendingMovies retrieves trending movies
+func (s *TMDBService) GetTrendingMovies(ctx context.Context, timeframe string, page int) (*models.MovieSearchResult, error) {
+	// Validate timeframe
+	if timeframe != "day" && timeframe != "week" {
+		timeframe = "day"
+	}
+
+	// Generate cache key
+	cacheKey := utils.GenerateCacheKey("tmdb_trending", timeframe, page)
+
+	// Check cache first
+	if cached, exists := s.cache.Get(cacheKey); exists {
+		if result, ok := cached.(*models.MovieSearchResult); ok {
+			return result, nil
+		}
+	}
+
+	// Build URL
+	baseURL := fmt.Sprintf("%s/trending/movie/%s", s.config.BaseURL, timeframe)
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("page", strconv.Itoa(page))
+	params.Set("language", "en-US")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trending movies: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbResp TMDBTrendingResponse
+	if err := json.Unmarshal(body, &tmdbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	movies := make([]models.Movie, len(tmdbResp.Results))
+	for i, tmdbMovie := range tmdbResp.Results {
+		movies[i] = *s.convertTMDBMovie(tmdbMovie)
+	}
+
+	result := &models.MovieSearchResult{
+		Page:         tmdbResp.Page,
+		Results:      movies,
+		TotalPages:   tmdbResp.TotalPages,
+		TotalResults: tmdbResp.TotalResults,
+	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, result, config.AppConfig.Cache.TrendingTTL)
+
+	return result, nil
+}
+
+// GetMoviesByGenre retrieves movies by genre
+func (s *TMDBService) GetMoviesByGenre(ctx context.Context, genreID int, page int, sortBy string) (*models.MovieSearchResult, error) {
+	// Generate cache key
+	cacheKey := utils.GenerateCacheKey("tmdb_genre", genreID, page, sortBy)
+
+	// Check cache first
+	if cached, exists := s.cache.Get(cacheKey); exists {
+		if result, ok := cached.(*models.MovieSearchResult); ok {
+			return result, nil
+		}
+	}
+
+	// Build URL
+	baseURL := fmt.Sprintf("%s/discover/movie", s.config.BaseURL)
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("with_genres", strconv.Itoa(genreID))
+	params.Set("page", strconv.Itoa(page))
+	params.Set("sort_by", sortBy)
+	params.Set("language", "en-US")
+	params.Set("include_adult", "false")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get movies by genre: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbResp TMDBSearchResponse
+	if err := json.Unmarshal(body, &tmdbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	movies := make([]models.Movie, len(tmdbResp.Results))
+	for i, tmdbMovie := range tmdbResp.Results {
+		movies[i] = *s.convertTMDBMovie(tmdbMovie)
+	}
+
+	result := &models.MovieSearchResult{
+		Page:         tmdbResp.Page,
+		Results:      movies,
+		TotalPages:   tmdbResp.TotalPages,
+		TotalResults: tmdbResp.TotalResults,
+	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, result, config.AppConfig.Cache.TTL)
+
+	return result, nil
+}
+
+// GetGenres retrieves all available genres
+func (s *TMDBService) GetGenres(ctx context.Context) ([]models.Genre, error) {
+	// Generate cache key
+	cacheKey := utils.GenerateCacheKey("tmdb_genres")
+
+	// Check cache first
+	if cached, exists := s.cache.Get(cacheKey); exists {
+		if genres, ok := cached.([]models.Genre); ok {
+			return genres, nil
+		}
+	}
+
+	// Build URL
+	baseURL := s.config.BaseURL + "/genre/movie/list"
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("language", "en-US")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get genres: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbResp TMDBGenreResponse
+	if err := json.Unmarshal(body, &tmdbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	genres := make([]models.Genre, len(tmdbResp.Genres))
+	for i, genre := range tmdbResp.Genres {
+		genres[i] = models.Genre{
+			ID:   genre.ID,
+			Name: genre.Name,
+		}
+	}
+
+	// Cache the result (genres don't change often)
+	s.cache.Set(cacheKey, genres, 24*time.Hour)
+
+	return genres, nil
+}
