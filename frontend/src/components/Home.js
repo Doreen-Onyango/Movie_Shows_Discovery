@@ -14,28 +14,26 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [mediaType, setMediaType] = useState('all');
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    loadInitialData(mediaType);
+    // eslint-disable-next-line
+  }, [mediaType]);
 
-  const loadInitialData = async () => {
+  const loadInitialData = async (type = mediaType) => {
     try {
       setLoading(true);
-      
-      // Load watchlist from localStorage
       const localWatchlist = getLocalWatchlist();
       setWatchlist(localWatchlist);
-
-      // Load trending movies and genres in parallel
       const [trendingResponse, genresResponse] = await Promise.all([
-        apiService.getTrendingMovies(1),
+        apiService.getTrendingMovies(1, type),
         apiService.getGenres()
       ]);
-
       setTrendingMovies(trendingResponse.data.trending || []);
       setGenres(genresResponse.data.genres || []);
       setHasMore(trendingResponse.data.total_pages > 1);
+      setCurrentPage(1);
     } catch (err) {
       console.error('Error loading initial data:', err);
       setError('Failed to load movies. Please try again later.');
@@ -47,9 +45,8 @@ const Home = () => {
   const loadMoreMovies = async () => {
     try {
       const nextPage = currentPage + 1;
-      const response = await apiService.getTrendingMovies(nextPage);
+      const response = await apiService.getTrendingMovies(nextPage, mediaType);
       const newMovies = response.data.trending || [];
-      
       setTrendingMovies(prev => [...prev, ...newMovies]);
       setCurrentPage(nextPage);
       setHasMore(response.data.total_pages > nextPage);
@@ -62,8 +59,13 @@ const Home = () => {
     setWatchlist(newWatchlist);
   };
 
+  const handleTypeChange = (type) => {
+    setMediaType(type);
+    setCurrentPage(1);
+  };
+
   if (loading) {
-    return <LoadingSpinner text="Loading trending movies..." />;
+    return <LoadingSpinner text="Loading trending..." />;
   }
 
   if (error) {
@@ -71,7 +73,7 @@ const Home = () => {
       <div className="text-center py-12">
         <div className="text-red-600 text-lg mb-4">{error}</div>
         <button
-          onClick={loadInitialData}
+          onClick={() => loadInitialData(mediaType)}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
         >
           Try Again
@@ -90,6 +92,28 @@ const Home = () => {
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Explore trending content, search for your favorites, and build your personal watchlist
         </p>
+      </div>
+
+      {/* Type Filter */}
+      <div className="flex gap-4 mb-8 justify-center">
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('all')}
+        >
+          All
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'movie' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('movie')}
+        >
+          Movies
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'tv' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('tv')}
+        >
+          TV Shows
+        </button>
       </div>
 
       {/* Genre Filter */}
@@ -116,12 +140,14 @@ const Home = () => {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {trendingMovies.map((movie) => (
-                <MovieCard
-                  key={movie.id}
-                  movie={movie}
-                  watchlist={watchlist}
-                  onWatchlistChange={handleWatchlistChange}
-                />
+                <div key={movie.id} className="relative">
+                  <MovieCard
+                    movie={movie}
+                    watchlist={watchlist}
+                    onWatchlistChange={handleWatchlistChange}
+                  />
+                  <span className={`absolute top-2 right-2 px-2 py-1 text-xs rounded bg-primary-600 text-white font-semibold uppercase`}>{movie.media_type === 'tv' ? 'TV' : 'Movie'}</span>
+                </div>
               ))}
             </div>
 
@@ -132,14 +158,14 @@ const Home = () => {
                   onClick={loadMoreMovies}
                   className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 >
-                  Load More Movies
+                  Load More
                 </button>
               </div>
             )}
           </>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No trending movies available at the moment.</p>
+            <p className="text-gray-500 text-lg">No trending content available at the moment.</p>
           </div>
         )}
       </div>
