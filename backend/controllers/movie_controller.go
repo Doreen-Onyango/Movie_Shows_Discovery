@@ -75,6 +75,41 @@ func (c *MovieController) SearchMovies(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetMovieDetails handles movie details requests
+func (c *MovieController) GetMovieDetails(w http.ResponseWriter, r *http.Request) {
+	// Get movie ID from URL
+	vars := mux.Vars(r)
+	movieIDStr := vars["id"]
+
+	movieID, err := strconv.Atoi(movieIDStr)
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get movie details from TMDB
+	movie, err := c.tmdbService.GetMovieDetails(r.Context(), movieID)
+	if err != nil {
+		c.logger.LogError(err, "GetMovieDetails", r)
+		http.Error(w, "Failed to get movie details", http.StatusInternalServerError)
+		return
+	}
+
+	// Enrich with OMDB data
+	err = c.omdbService.EnrichMovieWithOMDBData(r.Context(), movie)
+	if err != nil {
+		// Log error but don't fail the request
+		c.logger.LogError(err, "EnrichMovieWithOMDBData", r)
+	}
+
+	// Create response
+	response := models.NewSuccessResponse(movie, "Movie details retrieved successfully")
+
+	// Send response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // GetTrendingMovies handles trending movies requests
 func (c *MovieController) GetTrendingMovies(w http.ResponseWriter, r *http.Request) {
 	// Get query parameters
@@ -173,6 +208,40 @@ func (c *MovieController) GetGenres(w http.ResponseWriter, r *http.Request) {
 
 	// Create response
 	response := models.NewSuccessResponse(genres, "Genres retrieved successfully")
+
+	// Send response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetSimilarMovies handles similar movies requests
+func (c *MovieController) GetSimilarMovies(w http.ResponseWriter, r *http.Request) {
+	// Get movie ID from URL
+	vars := mux.Vars(r)
+	movieIDStr := vars["id"]
+
+	movieID, err := strconv.Atoi(movieIDStr)
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get limit parameter
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Get similar movies
+	similarMovies, err := c.watchlistService.GetSimilarMovies(r.Context(), movieID, limit)
+	if err != nil {
+		c.logger.LogError(err, "GetSimilarMovies", r)
+		http.Error(w, "Failed to get similar movies", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	response := models.NewSuccessResponse(similarMovies, "Similar movies retrieved successfully")
 
 	// Send response
 	w.Header().Set("Content-Type", "application/json")
