@@ -149,7 +149,6 @@ const SearchResults = () => {
                   watchlist={watchlist}
                   onWatchlistChange={handleWatchlistChange}
                 />
-                <span className={`absolute top-2 right-2 px-2 py-1 text-xs rounded bg-primary-600 text-white font-semibold uppercase`}>{movie.media_type === 'tv' ? 'TV' : 'Movie'}</span>
               </div>
             ))}
           </div>
