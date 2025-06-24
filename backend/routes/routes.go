@@ -36,7 +36,7 @@ func SetupRoutes(
 
 	// Movie routes
 	movieRoutes := api.PathPrefix("/movies").Subrouter()
-	movieRoutes.HandleFunc("/api/search", movieController.SearchMovies).Methods("GET")
+	movieRoutes.HandleFunc("/search", movieController.SearchMovies).Methods("GET")
 	movieRoutes.HandleFunc("/{id:[0-9]+}", movieController.GetMovieDetails).Methods("GET")
 	movieRoutes.HandleFunc("/{id:[0-9]+}/similar", movieController.GetSimilarMovies).Methods("GET")
 	movieRoutes.HandleFunc("/genres", movieController.GetGenres).Methods("GET")
