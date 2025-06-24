@@ -43,8 +43,13 @@ func (c *TrendingController) GetTrending(w http.ResponseWriter, r *http.Request)
 		page = 1
 	}
 
-	// Get trending movies
-	result, err := c.tmdbService.GetTrendingMovies(r.Context(), timeframe, page)
+	mediaType := r.URL.Query().Get("type")
+	if mediaType == "" {
+		mediaType = "all"
+	}
+
+	// Get trending movies and/or TV shows
+	result, err := c.tmdbService.GetTrendingMedia(r.Context(), timeframe, page, mediaType)
 	if err != nil {
 		c.logger.LogError(err, "GetTrending", r)
 		http.Error(w, "Failed to get trending content", http.StatusInternalServerError)
@@ -117,14 +122,14 @@ func (c *TrendingController) GetTrendingByGenre(w http.ResponseWriter, r *http.R
 // GetTrendingStats handles trending statistics requests
 func (c *TrendingController) GetTrendingStats(w http.ResponseWriter, r *http.Request) {
 	// Get trending movies for both day and week
-	dayTrending, err := c.tmdbService.GetTrendingMovies(r.Context(), "day", 1)
+	dayTrending, err := c.tmdbService.GetTrendingMedia(r.Context(), "day", 1, "all")
 	if err != nil {
 		c.logger.LogError(err, "GetTrendingStats - day", r)
 		http.Error(w, "Failed to get daily trending stats", http.StatusInternalServerError)
 		return
 	}
 
-	weekTrending, err := c.tmdbService.GetTrendingMovies(r.Context(), "week", 1)
+	weekTrending, err := c.tmdbService.GetTrendingMedia(r.Context(), "week", 1, "all")
 	if err != nil {
 		c.logger.LogError(err, "GetTrendingStats - week", r)
 		http.Error(w, "Failed to get weekly trending stats", http.StatusInternalServerError)
@@ -158,7 +163,7 @@ func (c *TrendingController) GetTrendingGenres(w http.ResponseWriter, r *http.Re
 	}
 
 	// Get trending movies to analyze popular genres
-	trending, err := c.tmdbService.GetTrendingMovies(r.Context(), "week", 1)
+	trending, err := c.tmdbService.GetTrendingMedia(r.Context(), "week", 1, "all")
 	if err != nil {
 		c.logger.LogError(err, "GetTrendingGenres - trending", r)
 		http.Error(w, "Failed to get trending genres", http.StatusInternalServerError)

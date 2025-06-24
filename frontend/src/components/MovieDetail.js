@@ -18,7 +18,7 @@ import LoadingSpinner from './LoadingSpinner';
 import MovieCard from './MovieCard';
 
 const MovieDetail = () => {
-  const { id } = useParams();
+  const { type, id } = useParams();
   const [movie, setMovie] = useState(null);
   const [similarMovies, setSimilarMovies] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
@@ -29,23 +29,28 @@ const MovieDetail = () => {
   useEffect(() => {
     loadMovieData();
     loadWatchlist();
-  }, [id]);
+  }, [type, id]);
 
   const loadMovieData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [movieResponse, similarResponse] = await Promise.all([
-        apiService.getMovieDetails(id),
-        apiService.getSimilarMovies(id, 1)
-      ]);
-
-      setMovie(movieResponse.data);
-      setSimilarMovies(similarResponse.data.movies || []);
+      const response = await apiService.getMediaDetails(type, id);
+      let mediaData = response.data.data;
+      if (!mediaData && response.data && response.data.success !== false) {
+        mediaData = response.data;
+      }
+      if (!mediaData || response.data.success === false) {
+        setError(type === 'tv' ? 'TV show not found.' : 'Movie not found.');
+        setMovie(null);
+        return;
+      }
+      setMovie(mediaData);
+      setSimilarMovies(response.data.movies || []);
     } catch (err) {
-      console.error('Error loading movie details:', err);
-      setError('Failed to load movie details. Please try again.');
+      console.error('Error loading details:', err);
+      setError('Failed to load details. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,13 +115,30 @@ const MovieDetail = () => {
 
   return (
     <div className="space-y-8">
+      {/* Trailer */}
+      {movie.trailerKey && (
+        <div className="my-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Trailer</h2>
+          <div className="w-full flex flex-col md:flex-row md:items-start gap-6">
+            <iframe
+              src={`https://www.youtube.com/embed/${movie.trailerKey}`}
+              title="Movie Trailer"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-48 md:h-64 rounded-lg border border-gray-300 dark:border-gray-700"
+              style={{ minWidth: 0 }}
+            ></iframe>
+          </div>
+        </div>
+      )}
+
       {/* Movie Header */}
       <div className="relative">
         {/* Backdrop Image */}
         <div className="relative h-96 bg-gray-900 rounded-lg overflow-hidden">
           <img
             src={getBackdropUrl(movie.backdrop_path)}
-            alt={movie.title}
+            alt={movie.title || movie.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
@@ -128,14 +150,14 @@ const MovieDetail = () => {
               <div className="flex-shrink-0">
                 <img
                   src={getPosterUrl(movie.poster_path, 'w500')}
-                  alt={movie.title}
+                  alt={movie.title || movie.name}
                   className="w-32 h-48 object-cover rounded-lg shadow-lg"
                 />
               </div>
               
               {/* Movie Info */}
               <div className="flex-1 text-white">
-                <h1 className="text-4xl font-bold mb-2">{movie.title}</h1>
+                <h1 className="text-4xl font-bold mb-2">{movie.title || movie.name}</h1>
                 
                 <div className="flex items-center space-x-4 text-sm mb-3">
                   {movie.release_date && (

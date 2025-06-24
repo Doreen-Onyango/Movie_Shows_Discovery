@@ -49,12 +49,16 @@ func (c *MovieController) SearchMovies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	includeAdult := r.URL.Query().Get("include_adult") == "true"
+	mediaType := r.URL.Query().Get("type")
+	if mediaType == "" {
+		mediaType = "all"
+	}
 
-	// Search movies
-	result, err := c.tmdbService.SearchMovies(r.Context(), query, page, perPage, includeAdult)
+	// Search movies and/or TV shows
+	result, err := c.tmdbService.SearchMedia(r.Context(), query, page, perPage, mediaType, includeAdult)
 	if err != nil {
 		c.logger.LogError(err, "SearchMovies", r)
-		http.Error(w, "Failed to search movies", http.StatusInternalServerError)
+		http.Error(w, "Failed to search movies/TV shows", http.StatusInternalServerError)
 		return
 	}
 
@@ -123,8 +127,13 @@ func (c *MovieController) GetTrendingMovies(w http.ResponseWriter, r *http.Reque
 		page = 1
 	}
 
-	// Get trending movies
-	result, err := c.tmdbService.GetTrendingMovies(r.Context(), timeframe, page)
+	mediaType := r.URL.Query().Get("type")
+	if mediaType == "" {
+		mediaType = "all"
+	}
+
+	// Get trending movies and/or TV shows
+	result, err := c.tmdbService.GetTrendingMedia(r.Context(), timeframe, page, mediaType)
 	if err != nil {
 		c.logger.LogError(err, "GetTrendingMovies", r)
 		http.Error(w, "Failed to get trending movies", http.StatusInternalServerError)
@@ -246,4 +255,46 @@ func (c *MovieController) GetSimilarMovies(w http.ResponseWriter, r *http.Reques
 	// Send response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// GetMediaDetails handles unified details requests for both movies and TV shows
+func (c *MovieController) GetMediaDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	mediaType := vars["type"]
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	if mediaType == "movie" {
+		movie, err := c.tmdbService.GetMovieDetails(r.Context(), id)
+		if err != nil {
+			c.logger.LogError(err, "GetMediaDetails (movie)", r)
+			http.Error(w, "Failed to get movie details", http.StatusInternalServerError)
+			return
+		}
+		// Enrich with OMDB data if you want
+		_ = c.omdbService.EnrichMovieWithOMDBData(r.Context(), movie)
+		response := models.NewSuccessResponse(movie, "Movie details retrieved successfully")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if mediaType == "tv" {
+		tv, err := c.tmdbService.GetTVDetails(r.Context(), id)
+		if err != nil {
+			c.logger.LogError(err, "GetMediaDetails (tv)", r)
+			http.Error(w, "Failed to get TV show details", http.StatusInternalServerError)
+			return
+		}
+		response := models.NewSuccessResponse(tv, "TV show details retrieved successfully")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	} else {
+		http.Error(w, "Invalid media type", http.StatusBadRequest)
+		return
+	}
 }

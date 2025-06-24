@@ -34,13 +34,17 @@ export const apiService = {
   // Health check
   healthCheck: () => api.get('/health'),
 
-  // Search movies
-  searchMovies: (query, page = 1) => 
-    api.get(`/movies/search?q=${encodeURIComponent(query)}&page=${page}&per_page=10`),
+  // Unified details endpoint for both movies and TV shows
+  getMediaDetails: (type, id) => 
+    api.get(`/media/${type}/${id}`),
 
-  // Get trending movies
-  getTrendingMovies: (page = 1) => 
-    api.get(`/trending?page=${page}`),
+  // Search movies and TV shows
+  searchMovies: (query, page = 1, type = 'all') => 
+    api.get(`/movies/search?q=${encodeURIComponent(query)}&page=${page}&per_page=10&type=${type}`),
+
+  // Get trending movies and TV shows
+  getTrendingMovies: (page = 1, type = 'all') => 
+    api.get(`/trending?page=${page}&type=${type}`),
 
   // Get movie details
   getMovieDetails: (movieId) => 

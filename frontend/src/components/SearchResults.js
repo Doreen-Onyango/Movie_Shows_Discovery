@@ -16,11 +16,12 @@ const SearchResults = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalResults, setTotalResults] = useState(0);
+  const [mediaType, setMediaType] = useState('all');
 
   useEffect(() => {
     if (query) {
       setCurrentPage(1);
-      searchMovies(query, 1);
+      searchMovies(query, 1, mediaType);
     } else {
       // Clear results when query is empty
       setMovies([]);
@@ -28,7 +29,7 @@ const SearchResults = () => {
       setTotalResults(0);
       setError(null);
     }
-  }, [query]);
+  }, [query, mediaType]);
 
   useEffect(() => {
     // Load watchlist from localStorage
@@ -36,12 +37,12 @@ const SearchResults = () => {
     setWatchlist(localWatchlist);
   }, []);
 
-  const searchMovies = async (searchQuery, page = 1) => {
+  const searchMovies = async (searchQuery, page = 1, type = mediaType) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.searchMovies(searchQuery, page);
+      const response = await apiService.searchMovies(searchQuery, page, type);
       const { results: searchResults, meta } = response.data;
       
       const total_pages = meta?.total_pages || 0;
@@ -67,10 +68,15 @@ const SearchResults = () => {
     setWatchlist(newWatchlist);
   };
 
+  const handleTypeChange = (type) => {
+    setMediaType(type);
+    setCurrentPage(1);
+  };
+
   if (!query) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Search Movies</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Search Movies & TV Shows</h2>
         <p className="text-gray-600">Enter a search term to find movies and TV shows.</p>
       </div>
     );
@@ -92,9 +98,31 @@ const SearchResults = () => {
         )}
       </div>
 
+      {/* Type Filter */}
+      <div className="flex gap-4 mb-4">
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('all')}
+        >
+          All
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'movie' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('movie')}
+        >
+          Movies
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${mediaType === 'tv' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
+          onClick={() => handleTypeChange('tv')}
+        >
+          TV Shows
+        </button>
+      </div>
+
       {/* Loading State */}
       {loading && movies.length === 0 && (
-        <LoadingSpinner text="Searching movies..." />
+        <LoadingSpinner text="Searching..." />
       )}
 
       {/* Error State */}
@@ -102,7 +130,7 @@ const SearchResults = () => {
         <div className="text-center py-8">
           <div className="text-red-600 text-lg mb-4">{error}</div>
           <button
-            onClick={() => searchMovies(query, 1)}
+            onClick={() => searchMovies(query, 1, mediaType)}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
           >
             Try Again
@@ -115,12 +143,14 @@ const SearchResults = () => {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {movies.map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                watchlist={watchlist}
-                onWatchlistChange={handleWatchlistChange}
-              />
+              <div key={movie.id} className="relative">
+                <MovieCard
+                  movie={movie}
+                  watchlist={watchlist}
+                  onWatchlistChange={handleWatchlistChange}
+                />
+                <span className={`absolute top-2 right-2 px-2 py-1 text-xs rounded bg-primary-600 text-white font-semibold uppercase`}>{movie.media_type === 'tv' ? 'TV' : 'Movie'}</span>
+              </div>
             ))}
           </div>
 
@@ -131,7 +161,7 @@ const SearchResults = () => {
                 if (currentPage > 1) {
                   const prevPage = currentPage - 1;
                   setCurrentPage(prevPage);
-                  searchMovies(query, prevPage);
+                  searchMovies(query, prevPage, mediaType);
                 }
               }}
               disabled={currentPage === 1 || loading}
@@ -145,7 +175,7 @@ const SearchResults = () => {
                 if (currentPage < totalPages) {
                   const nextPage = currentPage + 1;
                   setCurrentPage(nextPage);
-                  searchMovies(query, nextPage);
+                  searchMovies(query, nextPage, mediaType);
                 }
               }}
               disabled={currentPage === totalPages || loading}
@@ -161,7 +191,7 @@ const SearchResults = () => {
       {!loading && !error && movies.length === 0 && query && (
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg mb-4">
-            No movies found for "{query}"
+            No results found for "{query}"
           </div>
           <p className="text-gray-400">
             Try searching with different keywords or check your spelling.
