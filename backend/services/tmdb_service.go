@@ -1,7 +1,15 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/url"
+	"strconv"
+
 	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/config"
+	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/models"
 	"github.com/Doreen-Onyango/Movie_Shows_Discovery/backend/utils"
 )
 
@@ -87,4 +95,91 @@ type TMDBGenreResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"genres"`
+}
+
+// NewTMDBService creates a new TMDB service instance
+func NewTMDBService() *TMDBService {
+	return &TMDBService{
+		client: utils.CreateTMDBClient(),
+		cache:  utils.NewCache(),
+		config: &config.AppConfig.TMDB,
+	}
+}
+
+// SearchMovies searches for movies using TMDB API
+func (s *TMDBService) SearchMovies(ctx context.Context, query string, page int, perPage int, includeAdult bool) (*models.MovieSearchResult, error) {
+	if perPage <= 0 {
+		perPage = 10
+	}
+	// Generate cache key
+	cacheKey := utils.GenerateCacheKey("tmdb_search", query, page, perPage, includeAdult)
+
+	// Check cache first
+	if cached, exists := s.cache.Get(cacheKey); exists {
+		if result, ok := cached.(*models.MovieSearchResult); ok {
+			return result, nil
+		}
+	}
+
+	// Build URL
+	baseURL := s.config.BaseURL + "/search/movie"
+	params := url.Values{}
+	params.Set("api_key", s.config.APIKey)
+	params.Set("query", query)
+	params.Set("page", strconv.Itoa(1)) // Always fetch first page from TMDB
+	params.Set("include_adult", strconv.FormatBool(includeAdult))
+	params.Set("language", "en-US")
+
+	// Make request
+	resp, err := s.client.Get(ctx, baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search movies: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse response
+	var tmdbResp TMDBSearchResponse
+	if err := json.Unmarshal(body, &tmdbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to our model
+	movies := make([]models.Movie, len(tmdbResp.Results))
+	for i, tmdbMovie := range tmdbResp.Results {
+		movies[i] = *s.convertTMDBMovie(tmdbMovie)
+	}
+
+	// Manual pagination
+	totalResults := len(movies)
+	totalPages := (totalResults + perPage - 1) / perPage
+	start := (page - 1) * perPage
+	end := start + perPage
+	if start > totalResults {
+		start = totalResults
+	}
+	if end > totalResults {
+		end = totalResults
+	}
+	pagedMovies := []models.Movie{}
+	if start < end {
+		pagedMovies = movies[start:end]
+	}
+
+	result := &models.MovieSearchResult{
+		Page:         page,
+		Results:      pagedMovies,
+		TotalPages:   totalPages,
+		TotalResults: totalResults,
+	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, result, config.AppConfig.Cache.SearchTTL)
+
+	return result, nil
 }
