@@ -27,7 +27,7 @@ A modern React frontend for discovering movies, searching, browsing genres, mana
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Doreen-Onyango/Movie_Shows_Discovery
    cd Movie_Shows_Discovery/frontend
    ```
 
@@ -63,8 +63,7 @@ A modern React frontend for discovering movies, searching, browsing genres, mana
 ## Available Scripts
 - `npm start` — Start the development server
 - `npm run build` — Build for production
-- `npm test` — Run tests
-- `npm run eject` — Eject config (not recommended)
+
 
 ---
 
